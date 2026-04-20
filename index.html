@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de Polinomios Pro</title>
+    <!-- Mermaid para diagramas -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --error: #dc2626;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --status-valid-bg: #dcfce7;
+            --status-invalid-bg: #fee2e2;
+        }
+
+        body.dark {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --border: #334155;
+            --status-valid-bg: #064e3b;
+            --status-invalid-bg: #7f1d1d;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+
+        .theme-btn {
+            background: var(--border);
+            color: var(--text);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            font-size: 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            background: var(--card);
+            color: var(--text);
+            font-family: monospace;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); }
+
+        button.analyze-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Error Highlighting */
+        .error-area {
+            background: var(--status-invalid-bg);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--error);
+        }
+
+        .error-string {
+            font-family: monospace;
+            font-size: 1.2rem;
+            margin-top: 0.5rem;
+            letter-spacing: 2px;
+        }
+
+        .error-char {
+            background-color: var(--error);
+            color: white;
+            padding: 0 4px;
+            border-radius: 2px;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .card h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+
+        .status {
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .valid { background: var(--status-valid-bg); color: var(--success); }
+        .invalid { background: var(--status-invalid-bg); color: var(--error); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
+
+        .token-NUMERO { color: #0891b2; }
+        .token-VARIABLE { color: #7c3aed; font-weight: bold; }
+        .token-POTENCIA { color: #ea580c; }
+        .token-SUMA, .token-RESTA { color: #be123c; font-weight: bold; }
+        .token-ERROR { color: white; background: var(--error); padding: 2px 4px; border-radius: 3px; }
+
+        .afd-diagram {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        
+        body.dark .afd-diagram {
+            background: #1e293b;
+        }
+
+        .afd-diagram h3 { margin-top: 0; text-align: center; color: var(--text); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Analizador de Polinomios</h1>
+        <button id="theme-toggle" class="theme-btn">🌙 Modo oscuro</button>
+    </header>
+    
+    <div class="input-group">
+        <input type="text" id="polyInput" placeholder="Ej: 3x^2 - 5x + 2" value="3x^2 - 5x + 2">
+        <button class="analyze-btn" onclick="analizar()">Analizar</button>
+    </div>
+
+    <div id="errorDisplay" class="error-area" style="display:none;">
+        <strong>⚠️ Error de sintaxis:</strong> <span id="errorMessage"></span>
+        <div id="errorCadena" class="error-string"></div>
+    </div>
+
+    <div class="results">
+        <div class="card">
+            <h3>Estado del AFD</h3>
+            <div id="statusResult" class="status">Introduce un polinomio</div>
+            <p style="font-size: 0.8rem; opacity: 0.8;">
+                El autómata verifica si la secuencia de caracteres es gramaticalmente correcta para un polinomio simple.
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Tokens Atómicos</h3>
+            <div style="max-height: 200px; overflow-y: auto;">
+                <table id="tokenTable">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Valor</th>
+                            <th>Pos</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="afd-diagram">
+        <h3>Diagrama de Estados (Mermaid)</h3>
+        <pre class="mermaid">
+graph LR
+    Q0((INICIO))
+    Q1((SIGNO))
+    Q2((COEF))
+    Q3((VAR))
+    Q4((POT))
+    Q5((EXP))
+    QE((ERROR))
+
+    style Q2 fill:#dcfce7,stroke:#16a34a
+    style Q3 fill:#dcfce7,stroke:#16a34a
+    style Q5 fill:#dcfce7,stroke:#16a34a
+    style QE fill:#fee2e2,stroke:#dc2626
+
+    Q0 -- "+/-" --> Q1
+    Q0 -- "0-9" --> Q2
+    Q0 -- "x" --> Q3
+    
+    Q1 -- "0-9" --> Q2
+    Q1 -- "x" --> Q3
+    
+    Q2 -- "0-9" --> Q2
+    Q2 -- "x" --> Q3
+    Q2 -- "+/-" --> Q1
+    
+    Q3 -- "^" --> Q4
+    Q3 -- "+/-" --> Q1
+    
+    Q4 -- "0-9" --> Q5
+    
+    Q5 -- "0-9" --> Q5
+    Q5 -- "+/-" --> Q1
+        </pre>
+    </div>
+</div>
+
+<script>
+    // --- LÓGICA DEL AFD ---
+    const ESTADOS = {
+        Q0: "INICIO", Q1: "SIGNO", Q2: "COEFICIENTE", 
+        Q3: "VARIABLE", Q4: "POTENCIA", Q5: "EXPONENTE", QE: "ERROR"
+    };
+
+    function transicion(estado, caracter) {
+        if (caracter === ' ') return estado;
+        const esDigito = /[0-9]/.test(caracter);
+        const esSigno = ['+', '-'].includes(caracter);
+
+        if (esDigito) {
+            if ([ESTADOS.Q0, ESTADOS.Q1, ESTADOS.Q2].includes(estado)) return ESTADOS.Q2;
+            if ([ESTADOS.Q4, ESTADOS.Q5].includes(estado)) return ESTADOS.Q5;
+            return ESTADOS.QE;
+        }
+        if (esSigno) {
+            if ([ESTADOS.Q0, ESTADOS.Q2, ESTADOS.Q3, ESTADOS.Q5].includes(estado)) return ESTADOS.Q1;
+            return ESTADOS.QE;
+        }
+        if (caracter === 'x') {
+            if ([ESTADOS.Q0, ESTADOS.Q1, ESTADOS.Q2].includes(estado)) return ESTADOS.Q3;
+            return ESTADOS.QE;
+        }
+        if (caracter === '^') {
+            if (estado === ESTADOS.Q3) return ESTADOS.Q4;
+            return ESTADOS.QE;
+        }
+        return ESTADOS.QE;
+    }
+
+    function esAceptacion(estado) {
+        return [ESTADOS.Q2, ESTADOS.Q3, ESTADOS.Q5].includes(estado);
+    }
+
+    function validarConDetalle(cadena) {
+        let estadoActual = ESTADOS.Q0;
+        for (let i = 0; i < cadena.length; i++) {
+            let char = cadena[i];
+            let siguiente = transicion(estadoActual, char);
+            if (siguiente === ESTADOS.QE) {
+                return { valido: false, pos: i, caracter: char, estado: estadoActual };
+            }
+            estadoActual = siguiente;
+        }
+        const aceptado = esAceptacion(estadoActual);
+        return { 
+            valido: aceptado, 
+            pos: aceptado ? -1 : cadena.length, 
+            caracter: aceptado ? null : 'FIN DE CADENA',
+            estado: estadoActual
+        };
+    }
+
+    // --- LÓGICA DEL LEXER ---
+    class Lexer {
+        constructor(texto) {
+            this.texto = texto;
+            this.pos = 0;
+            this.actual = texto.length > 0 ? texto[0] : '';
+        }
+        avanzar() {
+            this.pos++;
+            this.actual = this.pos < this.texto.length ? this.texto[this.pos] : '';
+        }
+        ignorarEspacios() {
+            while (this.actual === ' ') this.avanzar();
+        }
+        leerNumero() {
+            let inicio = this.pos;
+            while (/[0-9]/.test(this.actual)) this.avanzar();
+            return { tipo: 'NUMERO', valor: this.texto.substring(inicio, this.pos), pos: inicio };
+        }
+        siguienteToken() {
+            this.ignorarEspacios();
+            if (this.pos >= this.texto.length) return { tipo: 'EOF', valor: '', pos: this.pos };
+            if (/[0-9]/.test(this.actual)) return this.leerNumero();
+            const mapeo = { 'x': 'VARIABLE', '^': 'POTENCIA', '+': 'SUMA', '-': 'RESTA' };
+            if (mapeo[this.actual]) {
+                const token = { tipo: mapeo[this.actual], valor: this.actual, pos: this.pos };
+                this.avanzar();
+                return token;
+            }
+            const errorToken = { tipo: 'ERROR', valor: this.actual, pos: this.pos };
+            this.avanzar();
+            return errorToken;
+        }
+        tokenizar() {
+            const tokens = [];
+            while (true) {
+                const tok = this.siguienteToken();
+                tokens.push(tok);
+                if (tok.tipo === 'EOF' || tok.tipo === 'ERROR') break;
+            }
+            return tokens;
+        }
+    }
+
+    // --- UI Y TEMAS ---
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.onclick = () => {
+        document.body.classList.toggle('dark');
+        const isDark = document.body.classList.contains('dark');
+        themeToggle.textContent = isDark ? "☀️ Modo claro" : "🌙 Modo oscuro";
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    };
+
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark');
+        themeToggle.textContent = "☀️ Modo claro";
+    }
+
+    function analizar() {
+        const entrada = document.getElementById('polyInput').value;
+        const statusDiv = document.getElementById('statusResult');
+        const errorDisplay = document.getElementById('errorDisplay');
+        const tbody = document.querySelector('#tokenTable tbody');
+        
+        // 1. Validar con detalle de error
+        const result = validarConDetalle(entrada);
+        
+        if (result.valido) {
+            statusDiv.textContent = "VÁLIDO";
+            statusDiv.className = "status valid";
+            errorDisplay.style.display = 'none';
+        } else {
+            statusDiv.textContent = "INVÁLIDO";
+            statusDiv.className = "status invalid";
+            errorDisplay.style.display = 'block';
+            
+            // Resaltar error
+            let htmlError = "";
+            for(let i=0; i<entrada.length; i++) {
+                if(i === result.pos) {
+                    htmlError += `<span class="error-char">${entrada[i]}</span>`;
+                } else {
+                    htmlError += entrada[i];
+                }
+            }
+            if (result.pos >= entrada.length) htmlError += `<span class="error-char" style="background:orange">_</span>`;
+            
+            document.getElementById('errorCadena').innerHTML = htmlError;
+            document.getElementById('errorMessage').textContent = 
+                result.pos < entrada.length 
+                ? `El carácter '${result.caracter}' no es válido después de un estado ${result.estado}.`
+                : `Estructura incompleta. El polinomio no puede terminar aquí.`;
+        }
+
+        // 2. Tokenizar
+        const lex = new Lexer(entrada);
+        const tokens = lex.tokenizar();
+        tbody.innerHTML = '';
+        tokens.forEach(t => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td class="token-${t.tipo}">${t.tipo}</td>
+                <td>${t.valor}</td>
+                <td>${t.pos}</td>
+            `;
+        });
+    }
+
+    window.onload = analizar;
+</script>
+
+</body>
+</html>
